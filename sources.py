@@ -1,0 +1,98 @@
+import aiohttp
+from bs4 import BeautifulSoup
+
+ARENA_PATCH_NOTES_URL = "https://mtgarena-support.wizards.com/hc/en-us/sections/4402585813268-Patch-Notes"
+MTGO_NEWS_URL = "https://www.mtgo.com/news"
+
+async def fetch_html(url: str) -> str:
+    timeout = aiohttp.ClientTimeout(total=15)
+
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 MagicDigitalBot/1.0",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+        ) as response:
+            print(f"Fetching {url} - Status: {response.status}")
+            response.raise_for_status()
+            return await response.text()
+
+
+async def get_latest_arena_patch() -> dict:
+    try:
+        html = await fetch_html(ARENA_PATCH_NOTES_URL)
+        soup = BeautifulSoup(html, "html.parser")
+
+        for link in soup.find_all("a", href=True):
+            title = link.get_text(" ", strip=True)
+
+            if title.startswith("Patch Notes -"):
+                href = link["href"]
+
+                if href.startswith("/"):
+                    href = "https://mtgarena-support.wizards.com" + href
+
+                return {
+                    "title": title,
+                    "url": href,
+                    "note": "Latest patch note found automatically.",
+                }
+    except aiohttp.ClientResponseError as error:
+        if error.status == 403:
+            print("Arena patch notes page returned 403 Forbidden. Using fallback link.")
+            return {
+                "title": "MTG Arena Patch Notes",
+                "url": ARENA_PATCH_NOTES_URL,
+                "note": "Wizards blocked the automatic fetch, so here is the official patch notes page.",
+            }
+
+        raise
+
+    except Exception as error:
+        print(f"Unexpected Arena fetch error: {error}")
+        return {
+            "title": "MTG Arena Patch Notes",
+            "url": ARENA_PATCH_NOTES_URL,
+            "note": "Could not fetch the latest patch automatically, so here is the official patch notes page.",
+        }
+
+    return {
+        "title": "MTG Arena Patch Notes",
+        "url": ARENA_PATCH_NOTES_URL,
+        "note": "No patch note title was found automatically, so here is the official patch notes page.",
+    }
+async def get_latest_mtgo_announcement() -> dict:
+    try:
+        html = await fetch_html(MTGO_NEWS_URL)
+        soup = BeautifulSoup(html, "html.parser")
+
+        for link in soup.find_all("a", href=True):
+            title = link.get_text(" ", strip=True)
+
+            if "Weekly Announcements" in title or "Announcements" in title:
+                href = link["href"]
+
+                if href.startswith("/"):
+                    href = "https://www.mtgo.com" + href
+
+                return {
+                    "title": title,
+                    "url": href,
+                    "note": "Latest Magic Online announcement found automatically.",
+                }
+
+    except Exception as error:
+        print(f"MTGO fetch error: {error}")
+        return {
+            "title": "Magic Online News",
+            "url": MTGO_NEWS_URL,
+            "note": "Could not fetch the latest MTGO announcement automatically, so here is the official MTGO news page.",
+        }
+
+    return {
+        "title": "Magic Online News",
+        "url": MTGO_NEWS_URL,
+        "note": "No MTGO announcement title was found automatically, so here is the official MTGO news page.",
+    }
