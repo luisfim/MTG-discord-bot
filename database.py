@@ -13,12 +13,13 @@ def init_database() -> None:
                 guild_id INTEGER PRIMARY KEY,
                 update_channel_id INTEGER,
                 arena_enabled INTEGER NOT NULL DEFAULT 1,
-                mtgo_enabled INTEGER NOT NULL DEFAULT 1
+                mtgo_enabled INTEGER NOT NULL DEFAULT 1,
+                last_arena_url TEXT,
+                last_mtgo_url TEXT
             )
             """
         )
 
-        # Handles older database versions that only had guild_id/update_channel_id.
         existing_columns = [
             row[1]
             for row in cursor.execute("PRAGMA table_info(server_settings)").fetchall()
@@ -32,6 +33,16 @@ def init_database() -> None:
         if "mtgo_enabled" not in existing_columns:
             cursor.execute(
                 "ALTER TABLE server_settings ADD COLUMN mtgo_enabled INTEGER NOT NULL DEFAULT 1"
+            )
+
+        if "last_arena_url" not in existing_columns:
+            cursor.execute(
+                "ALTER TABLE server_settings ADD COLUMN last_arena_url TEXT"
+            )
+
+        if "last_mtgo_url" not in existing_columns:
+            cursor.execute(
+                "ALTER TABLE server_settings ADD COLUMN last_mtgo_url TEXT"
             )
 
         connection.commit()
@@ -123,7 +134,7 @@ def get_update_settings(guild_id: int) -> dict:
 
         cursor.execute(
             """
-            SELECT update_channel_id, arena_enabled, mtgo_enabled
+            SELECT update_channel_id, arena_enabled, mtgo_enabled, last_arena_url, last_mtgo_url
             FROM server_settings
             WHERE guild_id = ?
             """,
@@ -134,13 +145,82 @@ def get_update_settings(guild_id: int) -> dict:
 
         if result is None:
             return {
+                "guild_id": guild_id,
                 "update_channel_id": None,
                 "arena_enabled": True,
                 "mtgo_enabled": True,
+                "last_arena_url": None,
+                "last_mtgo_url": None,
             }
 
         return {
+            "guild_id": guild_id,
             "update_channel_id": result[0],
             "arena_enabled": bool(result[1]),
             "mtgo_enabled": bool(result[2]),
+            "last_arena_url": result[3],
+            "last_mtgo_url": result[4],
         }
+
+
+def get_all_update_settings() -> list[dict]:
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT guild_id, update_channel_id, arena_enabled, mtgo_enabled, last_arena_url, last_mtgo_url
+            FROM server_settings
+            WHERE update_channel_id IS NOT NULL
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "guild_id": row[0],
+                "update_channel_id": row[1],
+                "arena_enabled": bool(row[2]),
+                "mtgo_enabled": bool(row[3]),
+                "last_arena_url": row[4],
+                "last_mtgo_url": row[5],
+            }
+            for row in rows
+        ]
+
+
+def set_last_arena_url(guild_id: int, url: str) -> None:
+    ensure_server_settings(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE server_settings
+            SET last_arena_url = ?
+            WHERE guild_id = ?
+            """,
+            (url, guild_id),
+        )
+
+        connection.commit()
+
+
+def set_last_mtgo_url(guild_id: int, url: str) -> None:
+    ensure_server_settings(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE server_settings
+            SET last_mtgo_url = ?
+            WHERE guild_id = ?
+            """,
+            (url, guild_id),
+        )
+
+        connection.commit()

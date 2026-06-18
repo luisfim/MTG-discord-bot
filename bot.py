@@ -1,6 +1,7 @@
 import os
 import discord
 from discord import app_commands
+from discord.ext import tasks
 from dotenv import load_dotenv
 
 from database import (
@@ -9,6 +10,9 @@ from database import (
     get_update_channel,
     set_update_sources,
     get_update_settings,
+    get_all_update_settings,
+    set_last_arena_url,
+    set_last_mtgo_url,
 )
 
 from sources import (
@@ -35,6 +39,9 @@ class MagicDigitalBot(discord.Client):
     async def setup_hook(self):
         synced = await self.tree.sync()
         print(f"Synced {len(synced)} command(s).")
+
+        if not automatic_update_check.is_running():
+            automatic_update_check.start()
 
 
 bot = MagicDigitalBot()
@@ -354,5 +361,102 @@ async def set_update_sources_command(
         f"Update sources changed.\nMTG Arena: {'enabled' if arena else 'disabled'}\nMagic Online: {'enabled' if mtgo else 'disabled'}",
         ephemeral=True,
     )
+
+@tasks.loop(hours=6)
+async def automatic_update_check():
+    await bot.wait_until_ready()
+
+    print("Running automatic update check...")
+
+    settings_list = get_all_update_settings()
+
+    if not settings_list:
+        print("No servers configured for updates.")
+        return
+
+    for settings in settings_list:
+        guild = bot.get_guild(settings["guild_id"])
+
+        if guild is None:
+            print(f"Guild not found: {settings['guild_id']}")
+            continue
+
+        channel = guild.get_channel(settings["update_channel_id"])
+
+        if channel is None:
+            print(f"Update channel not found for guild: {guild.name}")
+            continue
+
+        embed = discord.Embed(
+            title="Digital Magic Update",
+            description="New official digital Magic update detected.",
+            color=0x00AA88,
+        )
+
+        has_new_update = False
+
+        if settings["arena_enabled"]:
+            try:
+                arena = await get_latest_arena_patch()
+
+                if arena["url"] != settings["last_arena_url"]:
+                    embed.add_field(
+                        name="MTG Arena",
+                        value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+                        inline=False,
+                    )
+
+                    set_last_arena_url(settings["guild_id"], arena["url"])
+                    has_new_update = True
+
+            except Exception as error:
+                print(f"Automatic Arena check failed for {guild.name}: {error}")
+
+        if settings["mtgo_enabled"]:
+            try:
+                mtgo = await get_latest_mtgo_announcement()
+
+                if mtgo["url"] != settings["last_mtgo_url"]:
+                    embed.add_field(
+                        name="Magic Online",
+                        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+                        inline=False,
+                    )
+
+                    set_last_mtgo_url(settings["guild_id"], mtgo["url"])
+                    has_new_update = True
+
+            except Exception as error:
+                print(f"Automatic MTGO check failed for {guild.name}: {error}")
+
+        if has_new_update:
+            embed.set_footer(text="Sources: Wizards of the Coast / Magic Online")
+            await channel.send(embed=embed)
+            print(f"Posted update to {guild.name}.")
+
+        else:
+            print(f"No new updates for {guild.name}.")
+
+
+@bot.tree.command(name="check_updates_now", description="Manually run the automatic update check.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def check_updates_now(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        await automatic_update_check()
+
+        await interaction.followup.send(
+            "Manual update check completed. Check the configured updates channel.",
+            ephemeral=True,
+        )
+
+    except Exception as error:
+        print(f"Error in /check_updates_now: {error}")
+
+        await interaction.followup.send(
+            "Something went wrong while checking updates. Check the Codespaces terminal.",
+            ephemeral=True,
+        )
 
 bot.run(DISCORD_TOKEN)
