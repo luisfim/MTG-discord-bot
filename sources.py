@@ -109,6 +109,15 @@ def summarize_article_body(html_body: str, max_items: int = 5) -> str:
 
     return bullet_summary[:1000]
 
+async def get_summary_from_url(url: str) -> str:
+    try:
+        html = await fetch_html(url)
+        return summarize_article_body(html)
+
+    except Exception as error:
+        print(f"Could not summarize article {url}: {error}")
+        return "Could not generate a readable summary automatically."
+
 async def get_latest_arena_patch() -> dict:
     # First try the structured Zendesk Help Center API.
     try:
@@ -200,10 +209,12 @@ async def get_latest_mtgo_announcement() -> dict:
 
     except Exception as error:
         print(f"MTGO fetch error: {error}")
+        summary = await get_summary_from_url(href)
         return {
-            "title": "Magic Online News",
-            "url": MTGO_NEWS_URL,
-            "note": "Could not fetch the latest MTGO announcement automatically, so here is the official MTGO news page.",
+            "title": title,
+            "url": href,
+            "note": "Latest Magic Online announcement found automatically.",
+            "summary": summary,
         }
 
     return {

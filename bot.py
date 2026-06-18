@@ -82,7 +82,7 @@ async def mtgo_latest(interaction: discord.Interaction):
     embed = discord.Embed(
         title=announcement["title"],
         url=announcement["url"],
-        description=announcement["note"],
+        description=announcement.get("summary", announcement["note"]),
         color=0x2F80ED,
     )
 
@@ -111,7 +111,7 @@ async def digital_magic_latest(interaction: discord.Interaction):
 
     embed.add_field(
         name="Magic Online",
-        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo.get('summary', mtgo['note'])}",
         inline=False,
     )
 
@@ -301,7 +301,7 @@ async def send_test_update(interaction: discord.Interaction):
 
                 embed.add_field(
                     name="Magic Online",
-                    value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+                    value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo.get('summary', mtgo['note'])}",
                     inline=False,
                 )
 
@@ -419,7 +419,7 @@ async def automatic_update_check():
                 if mtgo["url"] != settings["last_mtgo_url"]:
                     embed.add_field(
                         name="Magic Online",
-                        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+                        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo.get('summary', mtgo['note'])}",
                         inline=False,
                     )
 
