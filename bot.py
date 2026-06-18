@@ -3,7 +3,13 @@ import discord
 from discord import app_commands
 from dotenv import load_dotenv
 
-from database import init_database, set_update_channel, get_update_channel
+from database import (
+    init_database,
+    set_update_channel,
+    get_update_channel,
+    set_update_sources,
+    get_update_settings,
+)
 
 from sources import (
     get_latest_arena_patch,
@@ -169,8 +175,8 @@ async def set_updates_channel(interaction: discord.Interaction, channel: discord
         ephemeral=True,
     )
 
-@bot.tree.command(name="updates_channel", description="Show the configured Magic updates channel.")
-async def updates_channel(interaction: discord.Interaction):
+@bot.tree.command(name="update_settings", description="Show this server's Magic update settings.")
+async def update_settings(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message(
             "This command can only be used inside a server.",
@@ -178,26 +184,174 @@ async def updates_channel(interaction: discord.Interaction):
         )
         return
 
-    channel_id = get_update_channel(interaction.guild.id)
+    settings = get_update_settings(interaction.guild.id)
 
-    if channel_id is None:
+    channel_text = "Not configured"
+
+    if settings["update_channel_id"] is not None:
+        channel = interaction.guild.get_channel(settings["update_channel_id"])
+
+        if channel is not None:
+            channel_text = channel.mention
+        else:
+            channel_text = "Configured channel was not found"
+
+    embed = discord.Embed(
+        title="Magic Update Settings",
+        color=0x00AA88,
+    )
+
+    embed.add_field(
+        name="Updates Channel",
+        value=channel_text,
+        inline=False,
+    )
+
+    embed.add_field(
+        name="MTG Arena Updates",
+        value="Enabled" if settings["arena_enabled"] else "Disabled",
+        inline=True,
+    )
+
+    embed.add_field(
+        name="Magic Online Updates",
+        value="Enabled" if settings["mtgo_enabled"] else "Disabled",
+        inline=True,
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="send_test_update", description="Send a test Magic update to the configured updates channel.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def send_test_update(interaction: discord.Interaction):
+    if interaction.guild is None:
         await interaction.response.send_message(
-            "No updates channel has been configured yet. Use `/set_updates_channel` first.",
+            "This command can only be used inside a server.",
             ephemeral=True,
         )
         return
 
-    channel = interaction.guild.get_channel(channel_id)
+    await interaction.response.defer(ephemeral=True)
 
-    if channel is None:
+    try:
+        settings = get_update_settings(interaction.guild.id)
+
+        print("DEBUG SETTINGS:", settings)
+
+        channel_id = settings["update_channel_id"]
+
+        if channel_id is None:
+            await interaction.followup.send(
+                "No updates channel has been configured yet. Use `/set_updates_channel` first.",
+                ephemeral=True,
+            )
+            return
+
+        if not settings["arena_enabled"] and not settings["mtgo_enabled"]:
+            await interaction.followup.send(
+                "Both Arena and MTGO updates are disabled. Use `/set_update_sources` first.",
+                ephemeral=True,
+            )
+            return
+
+        channel = interaction.guild.get_channel(channel_id)
+
+        if channel is None:
+            await interaction.followup.send(
+                "The configured updates channel could not be found. Use `/set_updates_channel` again.",
+                ephemeral=True,
+            )
+            return
+
+        embed = discord.Embed(
+            title="Digital Magic Test Update",
+            description="This is a test post for the configured Magic updates channel.",
+            color=0x00AA88,
+        )
+
+        if settings["arena_enabled"]:
+            try:
+                arena = await get_latest_arena_patch()
+
+                embed.add_field(
+                    name="MTG Arena",
+                    value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+                    inline=False,
+                )
+
+            except Exception as error:
+                print(f"Error fetching Arena update: {error}")
+
+                embed.add_field(
+                    name="MTG Arena",
+                    value="Could not fetch Arena update.",
+                    inline=False,
+                )
+
+        if settings["mtgo_enabled"]:
+            try:
+                mtgo = await get_latest_mtgo_announcement()
+
+                embed.add_field(
+                    name="Magic Online",
+                    value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+                    inline=False,
+                )
+
+            except Exception as error:
+                print(f"Error fetching MTGO update: {error}")
+
+                embed.add_field(
+                    name="Magic Online",
+                    value="Could not fetch MTGO update.",
+                    inline=False,
+                )
+
+        if len(embed.fields) == 0:
+            await interaction.followup.send(
+                "No update sources are enabled.",
+                ephemeral=True,
+            )
+            return
+
+        embed.set_footer(text="Sources: Wizards of the Coast / Magic Online")
+
+        await channel.send(embed=embed)
+
+        await interaction.followup.send(
+            f"Test update sent to {channel.mention}.",
+            ephemeral=True,
+        )
+
+    except Exception as error:
+        print(f"Error in /send_test_update: {error}")
+
+        await interaction.followup.send(
+            "Something went wrong while sending the test update. Check the Codespaces terminal for the error.",
+            ephemeral=True,
+        )
+@bot.tree.command(name="set_update_sources", description="Choose whether this server receives Arena, MTGO, or both updates.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def set_update_sources_command(
+    interaction: discord.Interaction,
+    arena: bool,
+    mtgo: bool,
+):
+    if interaction.guild is None:
         await interaction.response.send_message(
-            "An updates channel was configured, but I cannot find it anymore. It may have been deleted.",
+            "This command can only be used inside a server.",
             ephemeral=True,
         )
         return
+
+    set_update_sources(
+        guild_id=interaction.guild.id,
+        arena_enabled=arena,
+        mtgo_enabled=mtgo,
+    )
 
     await interaction.response.send_message(
-        f"Current updates channel: {channel.mention}",
+        f"Update sources changed.\nMTG Arena: {'enabled' if arena else 'disabled'}\nMagic Online: {'enabled' if mtgo else 'disabled'}",
         ephemeral=True,
     )
 
