@@ -70,4 +70,33 @@ async def mtgo_latest(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed)
 
+@bot.tree.command(name="digital_magic_latest", description="Show latest MTG Arena and MTGO updates.")
+async def digital_magic_latest(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    arena = await get_latest_arena_patch()
+    mtgo = await get_latest_mtgo_announcement()
+
+    embed = discord.Embed(
+        title="Digital Magic Latest Updates",
+        description="Latest official update links for MTG Arena and Magic Online.",
+        color=0x00AA88,
+    )
+
+    embed.add_field(
+        name="MTG Arena",
+        value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Magic Online",
+        value=f"[{mtgo['title']}]({mtgo['url']})\n{mtgo['note']}",
+        inline=False,
+    )
+
+    embed.set_footer(text="Sources: Wizards of the Coast / Magic Online")
+
+    await interaction.followup.send(embed=embed)
+
 bot.run(DISCORD_TOKEN)
