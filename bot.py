@@ -65,7 +65,7 @@ async def arena_latest(interaction: discord.Interaction):
     embed = discord.Embed(
         title=patch["title"],
         url=patch["url"],
-        description=patch["note"],
+        description=patch.get("summary", patch["note"]),
         color=0x7B3FCE,
     )
 
@@ -105,7 +105,7 @@ async def digital_magic_latest(interaction: discord.Interaction):
 
     embed.add_field(
         name="MTG Arena",
-        value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+        value=f"[{arena['title']}]({arena['url']})\n{arena.get('summary', arena['note'])}",
         inline=False,
     )
 
@@ -282,7 +282,7 @@ async def send_test_update(interaction: discord.Interaction):
 
                 embed.add_field(
                     name="MTG Arena",
-                    value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+                    value=f"[{arena['title']}]({arena['url']})\n{arena.get('summary', arena['note'])}",
                     inline=False,
                 )
 
@@ -402,7 +402,7 @@ async def automatic_update_check():
                 if arena["url"] != settings["last_arena_url"]:
                     embed.add_field(
                         name="MTG Arena",
-                        value=f"[{arena['title']}]({arena['url']})\n{arena['note']}",
+                        value=f"[{arena['title']}]({arena['url']})\n{arena.get('summary', arena['note'])}",
                         inline=False,
                     )
 

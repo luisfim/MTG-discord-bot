@@ -1,7 +1,12 @@
+import re
 import aiohttp
 from bs4 import BeautifulSoup
 
 ARENA_PATCH_NOTES_URL = "https://mtgarena-support.wizards.com/hc/en-us/sections/4402585813268-Patch-Notes"
+ARENA_PATCH_NOTES_API_URL = (
+    "https://mtgarena-support.wizards.com/api/v2/help_center/en-us/"
+    "sections/4402585813268/articles.json"
+)
 ARENA_STATUS_URL = "https://magicthegatheringarena.statuspage.io/"
 MTGO_NEWS_URL = "https://www.mtgo.com/news"
 MTGO_HOME_URL = "https://www.mtgo.com/"
@@ -22,8 +27,119 @@ async def fetch_html(url: str) -> str:
             response.raise_for_status()
             return await response.text()
 
+async def fetch_json(url: str) -> dict:
+    timeout = aiohttp.ClientTimeout(total=15)
+
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 MagicDigitalBot/1.0",
+                "Accept": "application/json",
+            },
+        ) as response:
+            print(f"Fetching JSON {url} - Status: {response.status}")
+            response.raise_for_status()
+            return await response.json()
+
+def clean_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def summarize_article_body(html_body: str, max_items: int = 5) -> str:
+    if not html_body:
+        return "No readable patch note summary was available."
+
+    soup = BeautifulSoup(html_body, "html.parser")
+
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+
+    important_keywords = [
+        "fixed",
+        "fix",
+        "bug",
+        "issue",
+        "updated",
+        "update",
+        "changed",
+        "change",
+        "new",
+        "event",
+        "store",
+        "card",
+        "deck",
+        "battlefield",
+        "maintenance",
+        "resolved",
+        "improved",
+        "adjusted",
+        "banned",
+        "suspended",
+        "rebalanced",
+    ]
+
+    summary_lines = []
+
+    for element in soup.find_all(["h2", "h3", "li", "p"]):
+        text = clean_text(element.get_text(" ", strip=True))
+
+        if len(text) < 20:
+            continue
+
+        lowered = text.lower()
+
+        if element.name in ["h2", "h3"]:
+            summary_lines.append(f"**{text}**")
+        elif any(keyword in lowered for keyword in important_keywords):
+            summary_lines.append(text)
+
+        if len(summary_lines) >= max_items:
+            break
+
+    if not summary_lines:
+        raw_text = clean_text(soup.get_text(" ", strip=True))
+        fallback_sentences = re.split(r"(?<=[.!?])\s+", raw_text)
+        summary_lines = [sentence for sentence in fallback_sentences if len(sentence) > 30][:max_items]
+
+    if not summary_lines:
+        return "No readable patch note summary was available."
+
+    bullet_summary = "\n".join(f"• {line[:240]}" for line in summary_lines)
+
+    return bullet_summary[:1000]
 
 async def get_latest_arena_patch() -> dict:
+    # First try the structured Zendesk Help Center API.
+    try:
+        api_url = (
+            f"{ARENA_PATCH_NOTES_API_URL}"
+            "?sort_by=updated_at&sort_order=desc&per_page=10"
+        )
+
+        data = await fetch_json(api_url)
+        articles = data.get("articles", [])
+
+        patch_articles = [
+            article
+            for article in articles
+            if article.get("title", "").startswith("Patch Notes")
+        ]
+
+        if patch_articles:
+            latest_article = patch_articles[0]
+
+            summary = summarize_article_body(latest_article.get("body", ""))
+            return {
+                "title": latest_article["title"],
+                "url": latest_article["html_url"],
+                "note": "Latest MTG Arena patch note found automatically through the Help Center API.",
+                "summary": summary,
+            }
+    except Exception as error:
+        print(f"Arena API fetch failed: {error}")
+
+    # If API fails, try the regular page.
     try:
         html = await fetch_html(ARENA_PATCH_NOTES_URL)
         soup = BeautifulSoup(html, "html.parser")
@@ -31,7 +147,7 @@ async def get_latest_arena_patch() -> dict:
         for link in soup.find_all("a", href=True):
             title = link.get_text(" ", strip=True)
 
-            if title.startswith("Patch Notes -"):
+            if title.startswith("Patch Notes"):
                 href = link["href"]
 
                 if href.startswith("/"):
@@ -40,8 +156,9 @@ async def get_latest_arena_patch() -> dict:
                 return {
                     "title": title,
                     "url": href,
-                    "note": "Latest patch note found automatically.",
+                    "note": "Latest MTG Arena patch note found automatically from the official Wizards support page.",
                 }
+
     except aiohttp.ClientResponseError as error:
         if error.status == 403:
             print("Arena patch notes page returned 403 Forbidden. Using fallback link.")
@@ -55,16 +172,11 @@ async def get_latest_arena_patch() -> dict:
 
     except Exception as error:
         print(f"Unexpected Arena fetch error: {error}")
-        return {
-            "title": "MTG Arena Patch Notes",
-            "url": ARENA_PATCH_NOTES_URL,
-            "note": "Could not fetch the latest patch automatically, so here is the official patch notes page.",
-        }
 
     return {
         "title": "MTG Arena Patch Notes",
         "url": ARENA_PATCH_NOTES_URL,
-        "note": "No patch note title was found automatically, so here is the official patch notes page.",
+        "note": "Could not detect the latest patch automatically, so here is the official patch notes page.",
     }
 async def get_latest_mtgo_announcement() -> dict:
     try:
