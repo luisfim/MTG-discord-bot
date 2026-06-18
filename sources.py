@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 
 ARENA_PATCH_NOTES_URL = "https://mtgarena-support.wizards.com/hc/en-us/sections/4402585813268-Patch-Notes"
 MTGO_NEWS_URL = "https://www.mtgo.com/news"
+ARENA_STATUS_URL = "https://magicthegatheringarena.statuspage.io/"
 
 async def fetch_html(url: str) -> str:
     timeout = aiohttp.ClientTimeout(total=15)
@@ -96,3 +97,58 @@ async def get_latest_mtgo_announcement() -> dict:
         "url": MTGO_NEWS_URL,
         "note": "No MTGO announcement title was found automatically, so here is the official MTGO news page.",
     }
+
+async def get_arena_status() -> dict:
+    try:
+        html = await fetch_html(ARENA_STATUS_URL)
+        soup = BeautifulSoup(html, "html.parser")
+
+        status_text = soup.get_text(" ", strip=True)
+
+        if "All Systems Operational" in status_text:
+            return {
+                "title": "MTG Arena Status",
+                "url": ARENA_STATUS_URL,
+                "status": "All Systems Operational",
+                "note": "The official MTG Arena status page reports that all systems are operational.",
+            }
+
+        if "Partial System Outage" in status_text:
+            return {
+                "title": "MTG Arena Status",
+                "url": ARENA_STATUS_URL,
+                "status": "Partial System Outage",
+                "note": "The official MTG Arena status page reports a partial system outage.",
+            }
+
+        if "Major System Outage" in status_text:
+            return {
+                "title": "MTG Arena Status",
+                "url": ARENA_STATUS_URL,
+                "status": "Major System Outage",
+                "note": "The official MTG Arena status page reports a major system outage.",
+            }
+
+        if "Under Maintenance" in status_text:
+            return {
+                "title": "MTG Arena Status",
+                "url": ARENA_STATUS_URL,
+                "status": "Under Maintenance",
+                "note": "The official MTG Arena status page indicates maintenance.",
+            }
+
+        return {
+            "title": "MTG Arena Status",
+            "url": ARENA_STATUS_URL,
+            "status": "Status Unknown",
+            "note": "The bot reached the official status page, but could not identify the current status automatically.",
+        }
+
+    except Exception as error:
+        print(f"Arena status fetch error: {error}")
+        return {
+            "title": "MTG Arena Status",
+            "url": ARENA_STATUS_URL,
+            "status": "Could not fetch status",
+            "note": "Could not fetch MTG Arena status automatically, so here is the official status page.",
+        }

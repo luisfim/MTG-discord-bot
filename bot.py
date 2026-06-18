@@ -3,8 +3,7 @@ import discord
 from discord import app_commands
 from dotenv import load_dotenv
 
-from sources import get_latest_arena_patch, get_latest_mtgo_announcement
-
+from sources import get_latest_arena_patch, get_latest_mtgo_announcement, get_arena_status
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -96,6 +95,29 @@ async def digital_magic_latest(interaction: discord.Interaction):
     )
 
     embed.set_footer(text="Sources: Wizards of the Coast / Magic Online")
+
+    await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="arena_status", description="Show the current MTG Arena service status.")
+async def arena_status(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    arena_status_data = await get_arena_status()
+
+    embed = discord.Embed(
+        title=arena_status_data["title"],
+        url=arena_status_data["url"],
+        description=arena_status_data["note"],
+        color=0xF2C94C,
+    )
+
+    embed.add_field(
+        name="Status",
+        value=arena_status_data["status"],
+        inline=False,
+    )
+
+    embed.set_footer(text="Source: Official MTG Arena Status Page")
 
     await interaction.followup.send(embed=embed)
 
