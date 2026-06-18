@@ -3,6 +3,8 @@ import discord
 from discord import app_commands
 from dotenv import load_dotenv
 
+from database import init_database, set_update_channel, get_update_channel
+
 from sources import (
     get_latest_arena_patch,
     get_latest_mtgo_announcement,
@@ -11,6 +13,7 @@ from sources import (
 )
 
 load_dotenv()
+init_database()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -148,5 +151,54 @@ async def mtgo_status(interaction: discord.Interaction):
     embed.set_footer(text="Source: Official Magic Online website")
 
     await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="set_updates_channel", description="Set the channel for future Magic update notifications.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def set_updates_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if interaction.guild is None:
+        await interaction.response.send_message(
+            "This command can only be used inside a server.",
+            ephemeral=True,
+        )
+        return
+
+    set_update_channel(interaction.guild.id, channel.id)
+
+    await interaction.response.send_message(
+        f"Update channel set to {channel.mention}.",
+        ephemeral=True,
+    )
+
+@bot.tree.command(name="updates_channel", description="Show the configured Magic updates channel.")
+async def updates_channel(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message(
+            "This command can only be used inside a server.",
+            ephemeral=True,
+        )
+        return
+
+    channel_id = get_update_channel(interaction.guild.id)
+
+    if channel_id is None:
+        await interaction.response.send_message(
+            "No updates channel has been configured yet. Use `/set_updates_channel` first.",
+            ephemeral=True,
+        )
+        return
+
+    channel = interaction.guild.get_channel(channel_id)
+
+    if channel is None:
+        await interaction.response.send_message(
+            "An updates channel was configured, but I cannot find it anymore. It may have been deleted.",
+            ephemeral=True,
+        )
+        return
+
+    await interaction.response.send_message(
+        f"Current updates channel: {channel.mention}",
+        ephemeral=True,
+    )
 
 bot.run(DISCORD_TOKEN)
