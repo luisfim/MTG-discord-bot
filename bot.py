@@ -54,7 +54,7 @@ async def on_ready():
 
 @bot.tree.command(name="ping", description="Check if the bot is online.")
 async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message("Pong. Magic Digital Bot is alive.")
+    await interaction.response.send_message("Pong. MTG Digital Updates is alive.")
 
 @bot.tree.command(name="arena_latest", description="Show the latest MTG Arena patch notes.")
 async def arena_latest(interaction: discord.Interaction):
@@ -459,10 +459,10 @@ async def check_updates_now(interaction: discord.Interaction):
             ephemeral=True,
         )
 
-@bot.tree.command(name="about", description="Show information about Magic Digital Bot.")
+@bot.tree.command(name="about", description="Show information about MTG Digital Updates.")
 async def about(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="Magic Digital Bot",
+        title="MTG Digital Updates",
         description=(
             "A Discord bot for tracking official digital Magic: The Gathering updates.\n\n"
             "It currently supports MTG Arena and Magic Online update links, status commands, "
@@ -508,10 +508,10 @@ async def about(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="help", description="Show Magic Digital Bot commands and usage examples.")
+@bot.tree.command(name="help", description="Show MTG Digital Updates commands and usage examples.")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="Magic Digital Bot Help",
+        title="MTG Digital Updates Help",
         description="Commands for tracking MTG Arena and Magic Online updates.",
         color=0x00AA88,
     )
@@ -561,7 +561,7 @@ async def help_command(interaction: discord.Interaction):
         inline=False,
     )
 
-    embed.set_footer(text="Magic Digital Bot")
+    embed.set_footer(text="MTG Digital Updates")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 

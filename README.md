@@ -1,7 +1,6 @@
-# Magic Digital Bot
+# MTG Digital Updates
 
-A Discord bot for tracking official digital Magic: The Gathering updates.
-
+A Discord bot that tracks MTG Arena and Magic Online updates, patch notes, server status, and announcements.
 The bot currently supports MTG Arena and Magic Online update links, with planned features for automatic notifications, summaries, maintenance alerts, and event tracking.
 
 ## Features
