@@ -2,8 +2,10 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 ARENA_PATCH_NOTES_URL = "https://mtgarena-support.wizards.com/hc/en-us/sections/4402585813268-Patch-Notes"
-MTGO_NEWS_URL = "https://www.mtgo.com/news"
 ARENA_STATUS_URL = "https://magicthegatheringarena.statuspage.io/"
+MTGO_NEWS_URL = "https://www.mtgo.com/news"
+MTGO_HOME_URL = "https://www.mtgo.com/"
+
 
 async def fetch_html(url: str) -> str:
     timeout = aiohttp.ClientTimeout(total=15)
@@ -151,4 +153,50 @@ async def get_arena_status() -> dict:
             "url": ARENA_STATUS_URL,
             "status": "Could not fetch status",
             "note": "Could not fetch MTG Arena status automatically, so here is the official status page.",
+        }
+async def get_mtgo_status() -> dict:
+    try:
+        html = await fetch_html(MTGO_HOME_URL)
+        soup = BeautifulSoup(html, "html.parser")
+
+        page_text = soup.get_text(" ", strip=True)
+
+        if "Server Status" in page_text and "Online" in page_text:
+            return {
+                "title": "Magic Online Server Status",
+                "url": MTGO_HOME_URL,
+                "status": "Online",
+                "note": "The MTGO homepage appears to show the server as online.",
+            }
+
+        if "Server Status" in page_text and "Offline" in page_text:
+            return {
+                "title": "Magic Online Server Status",
+                "url": MTGO_HOME_URL,
+                "status": "Offline",
+                "note": "The MTGO homepage appears to show the server as offline.",
+            }
+
+        if "Server Status" in page_text:
+            return {
+                "title": "Magic Online Server Status",
+                "url": MTGO_HOME_URL,
+                "status": "Status found, but unclear",
+                "note": "The bot found a server status section, but could not confidently read the current status.",
+            }
+
+        return {
+            "title": "Magic Online Server Status",
+            "url": MTGO_HOME_URL,
+            "status": "Status unknown",
+            "note": "The bot reached the MTGO homepage, but could not find a readable server status value.",
+        }
+
+    except Exception as error:
+        print(f"MTGO status fetch error: {error}")
+        return {
+            "title": "Magic Online Server Status",
+            "url": MTGO_HOME_URL,
+            "status": "Could not fetch status",
+            "note": "Could not fetch MTGO status automatically, so here is the official MTGO homepage.",
         }

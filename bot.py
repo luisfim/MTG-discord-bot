@@ -3,14 +3,19 @@ import discord
 from discord import app_commands
 from dotenv import load_dotenv
 
-from sources import get_latest_arena_patch, get_latest_mtgo_announcement, get_arena_status
+from sources import (
+    get_latest_arena_patch,
+    get_latest_mtgo_announcement,
+    get_arena_status,
+    get_mtgo_status,
+)
+
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 if not DISCORD_TOKEN:
     raise RuntimeError("Missing DISCORD_TOKEN. Add it to your .env file.")
-
 
 class MagicDigitalBot(discord.Client):
     def __init__(self):
@@ -118,6 +123,29 @@ async def arena_status(interaction: discord.Interaction):
     )
 
     embed.set_footer(text="Source: Official MTG Arena Status Page")
+
+    await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="mtgo_status", description="Show the current Magic Online server status.")
+async def mtgo_status(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    mtgo_status_data = await get_mtgo_status()
+
+    embed = discord.Embed(
+        title=mtgo_status_data["title"],
+        url=mtgo_status_data["url"],
+        description=mtgo_status_data["note"],
+        color=0xF2994A,
+    )
+
+    embed.add_field(
+        name="Status",
+        value=mtgo_status_data["status"],
+        inline=False,
+    )
+
+    embed.set_footer(text="Source: Official Magic Online website")
 
     await interaction.followup.send(embed=embed)
 
