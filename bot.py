@@ -459,4 +459,110 @@ async def check_updates_now(interaction: discord.Interaction):
             ephemeral=True,
         )
 
+@bot.tree.command(name="about", description="Show information about Magic Digital Bot.")
+async def about(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="Magic Digital Bot",
+        description=(
+            "A Discord bot for tracking official digital Magic: The Gathering updates.\n\n"
+            "It currently supports MTG Arena and Magic Online update links, status commands, "
+            "configurable update channels, and automatic update checks."
+        ),
+        color=0x00AA88,
+    )
+
+    embed.add_field(
+        name="Main Commands",
+        value=(
+            "`/arena_latest`\n"
+            "`/mtgo_latest`\n"
+            "`/digital_magic_latest`\n"
+            "`/arena_status`\n"
+            "`/mtgo_status`"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Admin Commands",
+        value=(
+            "`/set_updates_channel`\n"
+            "`/set_update_sources`\n"
+            "`/update_settings`\n"
+            "`/send_test_update`\n"
+            "`/check_updates_now`"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Update Sources",
+        value=(
+            "MTG Arena: Wizards official patch notes/status pages\n"
+            "Magic Online: official MTGO news/homepage"
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(text="Project by Luis Fim")
+
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="help", description="Show Magic Digital Bot commands and usage examples.")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="Magic Digital Bot Help",
+        description="Commands for tracking MTG Arena and Magic Online updates.",
+        color=0x00AA88,
+    )
+
+    embed.add_field(
+        name="General Commands",
+        value=(
+            "`/ping` — Check if the bot is online\n"
+            "`/about` — Show information about the bot\n"
+            "`/help` — Show this help message"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Update Commands",
+        value=(
+            "`/arena_latest` — Latest MTG Arena patch notes link\n"
+            "`/mtgo_latest` — Latest Magic Online announcement link\n"
+            "`/digital_magic_latest` — Arena and MTGO updates together\n"
+            "`/arena_status` — MTG Arena service status\n"
+            "`/mtgo_status` — Magic Online server status"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Admin Commands",
+        value=(
+            "`/set_updates_channel channel:#updates` — Choose where automatic updates are posted\n"
+            "`/set_update_sources arena:True mtgo:True` — Enable Arena, MTGO, or both\n"
+            "`/update_settings` — Show current server settings\n"
+            "`/send_test_update` — Send a test update to the configured channel\n"
+            "`/check_updates_now` — Manually run the update checker"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Example Setup",
+        value=(
+            "1. `/set_updates_channel channel:#magic-updates`\n"
+            "2. `/set_update_sources arena:True mtgo:True`\n"
+            "3. `/send_test_update`\n"
+            "4. `/update_settings`"
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(text="Magic Digital Bot")
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 bot.run(DISCORD_TOKEN)
