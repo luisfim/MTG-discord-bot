@@ -4,6 +4,10 @@ A Discord bot that tracks **MTG Arena** and **Magic Online** updates, patch note
 
 [Add MTG Digital Updates to your Discord server](https://discord.com/oauth2/authorize?client_id=1516867226433622146&permissions=84992&scope=bot%20applications.commands)
 
+## Preview
+
+![MTG Digital Updates bot working in Discord](assets/bot-preview.jpeg)
+
 ## Features
 
 * Fetches the latest MTG Arena patch notes
