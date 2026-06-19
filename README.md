@@ -43,13 +43,7 @@ A Discord bot that tracks **MTG Arena** and **Magic Online** updates, patch note
 * SQLite
 * AWS Lightsail
 * systemd
-
-## Deployment
-
-The bot is deployed on an **AWS Lightsail Ubuntu instance** and runs as a `systemd` service.
-
-This allows the bot to stay online independently of the development environment. The service is configured to restart automatically if the server reboots or if the bot process stops unexpectedly.
-
+  
 ## Local Setup
 
 Clone the repository:
